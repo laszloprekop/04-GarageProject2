@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Folder Include="Domain\"/>
         <Folder Include="Handler\"/>
         <Folder Include="Layouts\"/>
         <Folder Include="UI\"/>
