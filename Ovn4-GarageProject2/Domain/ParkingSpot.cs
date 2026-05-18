@@ -44,5 +44,5 @@ public class ParkingSpot : GarageCell
         }
         return false;
     }
-    public IEnumerable<Vehicle> GetVehicle() => _subslots.OfType<Vehicle>();
+    public IEnumerable<Vehicle> GetVehicles() => _subslots.OfType<Vehicle>();
 }
