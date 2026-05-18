@@ -21,6 +21,11 @@ public class Manager
         _garages = [MixedGarageLayout.Create()];
     }
 
+    public void Seed()
+    {
+        // placeholder for seeding code
+    }
+
     public IGarage ActiveGarage => _garages[_activeGarageIndex];
 
     public void Run() => _ui.Start();
