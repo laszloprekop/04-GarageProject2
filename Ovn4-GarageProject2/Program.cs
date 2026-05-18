@@ -4,4 +4,6 @@ using Ovn4_GarageProject2.UI;
 
 var handler = new GarageHandler();
 var ui = new ConsoleUi(handler);
-new Manager(ui).Run();
+var manager = new Manager(ui, handler);
+handler.SetGarage(manager.ActiveGarage);
+manager.Run();
