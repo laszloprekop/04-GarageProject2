@@ -18,12 +18,29 @@ public static class LayoutParser
             char ch = c < blueprint[r].Length ? blueprint[r][c] : ' ';
             grid[r, c] = ch switch
             {
-                '░'                    => new WallCell(),
+                '░'                           => new WallCell(),
                 _ when RoadChars.Contains(ch) => new RoadCell(),
-                _                      => new ParkingSpot { Id = r * cols + c, Row = r, Col = c },
+                _                             => CreateSpot(ch, r, c, cols),
             };
         }
 
         return new Garage<T>(name, grid);
     }
+
+    private static ParkingSpot CreateSpot(char ch, int r, int c, int cols) =>
+        new()
+        {
+            Id                 = r * cols + c,
+            Row                = r,
+            Col                = c,
+            HasEvCharger       = ch is 'C' or 'P' or '4' or '5' or '6',
+            AllowedVehicleType = ch switch
+            {
+                'b'                   => typeof(Bus),
+                'a'                   => typeof(Airplane),
+                '1' or '2' or '3'
+                or '4' or '5' or '6'  => typeof(Motorcycle),
+                _                     => null,
+            },
+        };
 }
