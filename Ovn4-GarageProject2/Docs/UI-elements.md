@@ -6,8 +6,8 @@ Parking spot, aka cell:
 - Separator lines are around the spots
 - Subdivided to 3 motorcycle parking spaces, if one motorcycle is parked, no other vehicle can park
 - Properties:
-  - has EV charger
-  - is Rented (Reserved to a registration number)
+    - has EV charger
+    - is Rented (Reserved to a registration number)
 
 ## Parking cell separtors:
 
@@ -274,8 +274,8 @@ Model 0, 9x7
 
 ╭╭━───━╮╮
 ▌└─────┘▐
-│┤     ├│
-│┤     ├│
+│┤ ├│
+│┤ ├│
 │┤█████├│
 ▌╯█████╰▐
 ╰━─────━╯
@@ -309,6 +309,26 @@ Model 2, 9x11
 │╯ ███ ╰│
 ▌╮ ███ ╭▐
 ▌╯     ╰▐
+╰━─────━╯
+```
+
+Model 2.1, 9x14 (2x3 car sized cells)
+
+```
+╭╭━───━╮╮
+▌└─────┘▐
+│╮     ╭│
+│╯     ╰│
+│╮┌───┐╭│
+│╯│   │╰│
+│╮└───┘╭│
+│╯     ╰│
+│╮     ╭│
+│╯     ╰│
+│╮     ╭│
+│╯█████╰│
+▌╮█████╭▐
+▌╯█████╰▐
 ╰━─────━╯
 ```
 
@@ -420,16 +440,20 @@ Garage Model 1
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 
 ```
+
 Simplified Garage Blueprint 2
+
 ```
-###################
-#b CCCCpp ppPPPP b#
-#b               b#
-#b cccccc cccccc b#
-#  cccccc cccccc  #
-#b               b#
-#b CCCCPP PPpppp b#
-##i#############o##
+░░░░░░░░░░░░░░░░
+░░│C│C│p│p│  bb░
+░            bb░
+░ │C│c│c│p│  bb░
+░ ├─┼─┼─┼─┤  ──░
+░ │C│c│c│P│  bb░
+░            bb░
+░░│C│C│p│P│  bb░
+░░░░░░░░░░░  ░░░
+
 ```
 
 Legend:
@@ -440,5 +464,7 @@ p - cell, reserved/rented by a registration number, driveable
 P - cell with EV charger, reserved/rented by a registration number, driveable
 i - in/entry gate, driveable
 o - out/exit gate, driveable
-# - impassable wall
+
+░ - impassable wall
+
 ` ` - driveable road
