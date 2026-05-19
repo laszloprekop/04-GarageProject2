@@ -6,6 +6,15 @@ public class GarageHandler : IHandler
 {
     private IGarage? _garage;
 
+    private static readonly Dictionary<Type, (int W, int H)> Footprints = new()
+    {
+        [typeof(Car)] = (1, 1),
+        [typeof(Motorcycle)] = (1, 1),
+        [typeof(Boat)] = (1, 2),
+        [typeof(Bus)] = (2, 3),
+        [typeof(Airplane)] = (4, 2),
+    };
+
     public void SetGarage(IGarage garage) => _garage = garage;
 
     public GarageCell[,] GetGrid() => _garage?.GetGrid() ?? new GarageCell[0, 0];
@@ -28,7 +37,30 @@ public class GarageHandler : IHandler
             .Select(g => (Type: g.Key, Count: g.Count()))
         ?? Enumerable.Empty<(string, int)>();
 
-    public bool Park(Vehicle vehicle) => true;
+    public bool Park(Vehicle vehicle)
+    {
+        if (_garage is null) return false;
+        // Does Reg Number already exist?
+        if (GetAllVehicles().Any(v => v.RegNumber.Equals(vehicle.RegNumber, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        var (width, height) = Footprints.GetValueOrDefault(vehicle.GetType(), (1, 1));
+        Type? requiredZone = vehicle is Bus or Airplane ? vehicle.GetType() : null;
+        var anchor = FindFreeSpot(width, height, requiredZone);
+        if (anchor is null) return false;
+
+        var grid = _garage.GetGrid();
+        for (int r = anchor.Row; r < anchor.Row + height; r++)
+        {
+            for (int c = anchor.Col; c < anchor.Col + width; c++)
+            {
+                if (grid[r, c] is ParkingSpot spot)
+                    spot.TryPark(vehicle);
+            }
+        }
+
+        return true;
+    }
 
     public ParkingSpot? FindFreeSpot(int width, int height, Type? requiredType = null)
     {

@@ -58,7 +58,7 @@ public class ConsoleUi : IUi
                         close.Accepting += (_, _) => app.RequestStop(null);
                         dialog.Add(list, close);
                         app.Run(dialog);
-                    }),
+                    }, null),
                     new MenuItem("Vehicle _Type Summary", "", () =>
                     {
                         var items = _handler.GetVehicleTypeCounts()
@@ -70,17 +70,39 @@ public class ConsoleUi : IUi
                         close.Accepting += (_, _) => app.RequestStop(null);
                         dialog.Add(list, close);
                         app.Run(dialog);
-                    }),
-                    new MenuItem("_Park Vehicle", "",
-                        () => MessageBox.Query(app, "Park", "TODO: Park a vehicle", "OK")),
-                    new MenuItem("_Toggle Renderer", "",
-                        () =>
+                    }, null),
+                    new MenuItem("_Park Vehicle", "", () =>
+                    {
+                        var types = new[] { "Car", "Motorcycle", "Bus", "Boat", "Airplane" };
+                        var dialog = new Dialog { Title = "Park Vehicle", Width = 50, Height = 14 };
+
+                        var typeLabel = new Label { Text = "Vehicle Type:", X = 1, Y = 1 };
+                        var typeList = new ListView { X = 1, Y = 2, Width = 20, Height = 5 };
+                        typeList.SetSource(new ObservableCollection<string>(types));
+                        var regLabel = new Label { Text = "Registration number:", X = 1, Y = 8 };
+                        var regField = new TextField { X = 14, Y = 8, Width = 15 };
+                        var okButton = new Button { Text = "Park", X = 1, Y = 10 };
+                        var cancelButton = new Button { Text = "Cancel", X = 10, Y = 10 };
+
+                        okButton.Accepting += (_, _) =>
                         {
-                            showingSprite = !showingSprite;
-                            spriteView.Visible = showingSprite;
-                            mapView.Visible = !showingSprite;
-                        }),
-                    new MenuItem("_Quit", "", () => app.RequestStop(null))
+                            var vehicle = CreateVehicle(types[typeList.SelectedItem ?? 0], regField.Text);
+                            bool ok = _handler.Park(vehicle);
+                            app.RequestStop(null);
+                            MessageBox.Query(app, "Result", ok ? "Vehicle parked." : "Could not park vehicle.", "OK");
+                        };
+                        cancelButton.Accepting += (_, _) => app.RequestStop(null);
+
+                        dialog.Add(typeLabel, typeList, regLabel, regField, okButton, cancelButton);
+                        app.Run(dialog);
+                    }, null),
+                    new MenuItem("_Toggle Renderer", "", () =>
+                    {
+                        showingSprite = !showingSprite;
+                        spriteView.Visible = showingSprite;
+                        mapView.Visible = !showingSprite;
+                    }, null),
+                    new MenuItem("_Quit", "", () => app.RequestStop(null), null)
                 ])
             ]
         };
@@ -90,4 +112,14 @@ public class ConsoleUi : IUi
         app.Run(win);
         win.Dispose();
     }
+
+    private static Domain.Vehicle CreateVehicle(string type, string regNo) => type switch
+    {
+        "Car" => new Domain.Car { RegNumber = regNo, Colour = "White", WheelCount = "4" },
+        "Motorcycle" => new Domain.Motorcycle { RegNumber = regNo, Colour = "Black", WheelCount = "2" },
+        "Bus" => new Domain.Bus { RegNumber = regNo, Colour = "Yellow", WheelCount = "6" },
+        "Boat" => new Domain.Boat { RegNumber = regNo, Colour = "Blue", WheelCount = "10" },
+        "Airplane" => new Domain.Airplane { RegNumber = regNo, Colour = "Silver", WheelCount = "18" },
+        _ => throw new NotImplementedException()
+    };
 }
