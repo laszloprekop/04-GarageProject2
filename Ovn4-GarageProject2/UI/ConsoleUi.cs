@@ -59,7 +59,7 @@ public class ConsoleUi : IUi
                         dialog.Add(list, close);
                         app.Run(dialog);
                     }),
-                    new MenuItem("Vehile _Type Summary", "", () =>
+                    new MenuItem("Vehicle _Type Summary", "", () =>
                     {
                         var items = _handler.GetVehicleTypeCounts()
                             .Select(t => $"{t.Type,-15}: {t.Count}").ToList();
@@ -71,6 +71,8 @@ public class ConsoleUi : IUi
                         dialog.Add(list, close);
                         app.Run(dialog);
                     }),
+                    new MenuItem("_Park Vehicle", "",
+                        () => MessageBox.Query(app, "Park", "TODO: Park a vehicle", "OK")),
                     new MenuItem("_Toggle Renderer", "",
                         () =>
                         {

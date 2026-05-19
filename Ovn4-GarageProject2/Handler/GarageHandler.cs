@@ -28,4 +28,5 @@ public class GarageHandler : IHandler
             .Select(g => (Type: g.Key, Count: g.Count()))
         ?? Enumerable.Empty<(string, int)>();
 
+    public bool Park(Vehicle vehicle) => true;
 }

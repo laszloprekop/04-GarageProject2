@@ -7,4 +7,5 @@ public interface IHandler
     IEnumerable<Vehicle> GetAllVehicles();
     GarageCell[,] GetGrid();
     IEnumerable<(string Type, int Count)> GetVehicleTypeCounts();
+    bool Park(Vehicle vehicle);
 }
