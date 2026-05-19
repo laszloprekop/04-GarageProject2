@@ -1,11 +1,35 @@
 namespace Ovn4_GarageProject2.UI;
+
 using Domain;
 
-// High-res text renderer: each ParkingSpot → 4×5 (vertical) or 9×3 (horizontal) char block.
-// Walls and road cells remain 1×1. Separators tile to fill their slot height/width.
-// Bus bays render as a single 'B' cell (zone-spanning glyph is a future step).
-public static class GarageRenderer
+/// <summary>
+/// Converts a <see cref="GarageCell"/> grid into an array of Unicode text lines for terminal display.
+/// </summary>
+/// <remarks>
+/// The rendering pipeline has four stages:
+/// <list type="number">
+///   <item><description><see cref="BuildRenderPlan"/> — assigns a character-space bounding rectangle to every logical cell.</description></item>
+///   <item><description><see cref="AllocateBuffer"/> — allocates the backing <c>char[,]</c> array, filled with spaces.</description></item>
+///   <item><description><see cref="WriteToBuffer"/> — stamps each cell's glyph into the buffer.</description></item>
+///   <item><description><see cref="BufferToLines"/> — serialises rows to right-trimmed strings.</description></item>
+/// </list>
+/// <para>
+/// This class is split across two files using the <c>partial</c> keyword:
+/// <list type="bullet">
+///   <item><description><c>GarageRenderer.cs</c> — rendering pipeline and glyph dispatch (this file).</description></item>
+///   <item><description><c>GarageRenderer.Glyphs.cs</c> — static Unicode sprite tables.</description></item>
+/// </list>
+/// Separating data from logic keeps this file focused and avoids loading sprite tables into
+/// the reader's context when working on rendering behaviour.
+/// </para>
+/// </remarks>
+public static partial class GarageRenderer
 {
+    /// <summary>
+    /// Renders <paramref name="grid"/> into an array of text lines ready for terminal display.
+    /// </summary>
+    /// <param name="grid">The logical grid of garage cells produced by <see cref="LayoutParser"/>.</param>
+    /// <returns>One string per character row, right-trimmed of trailing spaces.</returns>
     public static string[] Render(GarageCell[,] grid)
     {
         var plan = BuildRenderPlan(grid);
@@ -16,8 +40,27 @@ public static class GarageRenderer
 
     // ── Render plan ───────────────────────────────────────────────────────
 
+    /// <summary>Character-space bounding rectangle for one logical cell.</summary>
     private record CellRect(int CharRow, int CharCol, int CharHeight, int CharWidth);
 
+    /// <summary>
+    /// Computes a character-space bounding rectangle for every logical cell in <paramref name="grid"/>.
+    /// </summary>
+    /// <remarks>
+    /// Three passes refine the initial 1×1 defaults:
+    /// <list type="number">
+    ///   <item><description>Parking-spot dimensions set spot columns to 4 or 9 wide and spot rows to 5 or 3 tall.</description></item>
+    ///   <item><description>Lane-column pass: columns that contain a plain road cell (<c>' '</c>) in a spot row
+    ///     are widened to <c>laneW</c> (5 for vertical garages, 10 for horizontal).
+    ///     Separator columns are implicitly excluded because they hold <c>│</c>, not <c>' '</c>, in spot rows.</description></item>
+    ///   <item><description>Lane-row pass: rows that contain a plain road cell in a spot column are heightened to
+    ///     <c>laneH</c> (5 for vertical garages, 3 for horizontal).
+    ///     A snapshot of column widths taken before pass 2 (<c>spotColW</c>) prevents expanded lane
+    ///     columns from incorrectly qualifying wall rows as lane rows.</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="grid">The logical grid to analyse.</param>
+    /// <returns>A dictionary mapping each <c>(row, col)</c> index to its <see cref="CellRect"/>.</returns>
     private static Dictionary<(int r, int c), CellRect> BuildRenderPlan(GarageCell[,] grid)
     {
         int logRows = grid.GetLength(0);
@@ -25,13 +68,61 @@ public static class GarageRenderer
 
         var rowH = new int[logRows];
         for (int r = 0; r < logRows; r++)
-            for (int c = 0; c < logCols; c++)
-                rowH[r] = Math.Max(rowH[r], CharHeight(grid[r, c]));
+        for (int c = 0; c < logCols; c++)
+            rowH[r] = Math.Max(rowH[r], CharHeight(grid[r, c]));
 
         var colW = new int[logCols];
         for (int c = 0; c < logCols; c++)
+        for (int r = 0; r < logRows; r++)
+            colW[c] = Math.Max(colW[c], CharWidth(grid[r, c]));
+
+        // Detect parking orientations for lane sizing.
+        bool hasVert = false, hasHoriz = false;
+        for (int r = 0; r < logRows; r++)
+        for (int c = 0; c < logCols; c++)
+        {
+            if (grid[r, c] is ParkingSpot { Orientation: Orientation.Vertical }) hasVert = true;
+            if (grid[r, c] is ParkingSpot { Orientation: Orientation.Horizontal }) hasHoriz = true;
+        }
+
+        int laneW = hasHoriz ? 10 : hasVert ? 5 : 1;
+        int laneH = hasVert  ?  5 : hasHoriz ? 3 : 1;
+
+        // Snapshot initial colW so the row-pass can identify spot columns unambiguously.
+        var spotColW = (int[])colW.Clone();
+
+        // Expand lane columns: a lane column has a plain-road cell in a spot row (rowH > 1).
+        // Separator columns (│ etc.) have only their glyph char in spot rows, never ' ',
+        // so the Glyph: ' ' pattern already excludes them — no extra wall check needed.
+        for (int c = 0; c < logCols; c++)
+        {
+            if (colW[c] > 1) continue;
+            bool hasParking = false, isLaneCol = false;
             for (int r = 0; r < logRows; r++)
-                colW[c] = Math.Max(colW[c], CharWidth(grid[r, c]));
+            {
+                if (grid[r, c] is ParkingSpot)                              hasParking = true;
+                if (rowH[r] > 1 && grid[r, c] is RoadCell { Glyph: ' ' }) isLaneCol  = true;
+            }
+
+            if (!hasParking && isLaneCol) colW[c] = laneW;
+        }
+
+        // Expand lane rows: a lane row has a plain-road cell in a spot column (spotColW > 1).
+        // Bus spots (CharHeight == 1) do NOT count as hasParking — they live in lane rows.
+        // Separator rows (containing ─ ┼ etc.) are excluded.
+        for (int r = 0; r < logRows; r++)
+        {
+            if (rowH[r] > 1) continue;
+            bool hasParking = false, hasSep = false, isLaneRow = false;
+            for (int c = 0; c < logCols; c++)
+            {
+                if (CharHeight(grid[r, c]) > 1)                                hasParking = true;
+                if (grid[r, c] is RoadCell rc && IsSeparatorGlyph(rc.Glyph))  hasSep     = true;
+                if (spotColW[c] > 1 && grid[r, c] is RoadCell { Glyph: ' ' }) isLaneRow  = true;
+            }
+
+            if (!hasParking && !hasSep && isLaneRow) rowH[r] = laneH;
+        }
 
         int[] rowY = CumulativeSum(rowH);
         int[] colX = CumulativeSum(colW);
@@ -44,6 +135,7 @@ public static class GarageRenderer
         return plan;
     }
 
+    /// <summary>Converts an array of slot sizes into an array of cumulative start offsets.</summary>
     private static int[] CumulativeSum(int[] sizes)
     {
         var offsets = new int[sizes.Length];
@@ -52,9 +144,23 @@ public static class GarageRenderer
         return offsets;
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="g"/> is a box-drawing separator character
+    /// (<c>│ ─ ┼ ├ ┤ ┬ ┴</c>).
+    /// </summary>
+    private static bool IsSeparatorGlyph(char g) =>
+        g is '│' or '─' or '┼' or '├' or '┤' or '┬' or '┴';
+
     // ── Character dimensions ──────────────────────────────────────────────
 
-    // Bus check must precede Vertical — bus spots default to Orientation.Vertical.
+    /// <summary>
+    /// Returns the character height of <paramref name="cell"/>'s sprite.
+    /// </summary>
+    /// <remarks>
+    /// Bus spots are matched before the general vertical case because <see cref="LayoutParser"/>
+    /// assigns <see cref="Orientation.Vertical"/> as the default orientation, which would
+    /// otherwise give bus spots a height of 5 instead of 1.
+    /// </remarks>
     private static int CharHeight(GarageCell? cell) => cell switch
     {
         ParkingSpot { AllowedVehicleType: var t } when t == typeof(Bus) => 1,
@@ -63,6 +169,7 @@ public static class GarageRenderer
         _                                                               => 1,
     };
 
+    /// <summary>Returns the character width of <paramref name="cell"/>'s sprite.</summary>
     private static int CharWidth(GarageCell? cell) => cell switch
     {
         ParkingSpot { AllowedVehicleType: var t } when t == typeof(Bus) => 1,
@@ -73,6 +180,10 @@ public static class GarageRenderer
 
     // ── Buffer ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Allocates a <c>char[,]</c> large enough to hold every cell described by <paramref name="plan"/>,
+    /// initialised with spaces.
+    /// </summary>
     private static char[,] AllocateBuffer(Dictionary<(int r, int c), CellRect> plan)
     {
         int totalRows = plan.Values.Max(rect => rect.CharRow + rect.CharHeight);
@@ -84,6 +195,7 @@ public static class GarageRenderer
         return buffer;
     }
 
+    /// <summary>Iterates every logical cell and writes its glyph into <paramref name="buffer"/>.</summary>
     private static void WriteToBuffer(GarageCell[,] grid, Dictionary<(int, int), CellRect> plan, char[,] buffer)
     {
         int logRows = grid.GetLength(0);
@@ -96,8 +208,17 @@ public static class GarageRenderer
         }
     }
 
+    /// <summary>
+    /// Writes <paramref name="glyph"/> into <paramref name="buffer"/> at the given position.
+    /// </summary>
+    /// <remarks>
+    /// Single-character glyphs (walls, separators) are <em>tiled</em> to fill the entire
+    /// <paramref name="slotH"/>×<paramref name="slotW"/> slot, so lane columns and lane rows
+    /// always display a continuous surface rather than isolated symbols.
+    /// Multi-character glyphs (parking-spot sprites) are written verbatim, top-left aligned.
+    /// </remarks>
     private static void WriteGlyph(char[,] buffer, int startRow, int startCol,
-                                   string[] glyph, int slotH, int slotW)
+        string[] glyph, int slotH, int slotW)
     {
         if (glyph.Length == 1 && glyph[0].Length == 1)
         {
@@ -108,6 +229,7 @@ public static class GarageRenderer
                 buffer[startRow + gr, startCol + gc] = ch;
             return;
         }
+
         for (int gr = 0; gr < glyph.Length; gr++)
         for (int gc = 0; gc < glyph[gr].Length; gc++)
             buffer[startRow + gr, startCol + gc] = glyph[gr][gc];
@@ -115,17 +237,26 @@ public static class GarageRenderer
 
     // ── Glyph selection ───────────────────────────────────────────────────
 
+    /// <summary>
+    /// Returns the sprite rows for the cell at <c>grid[<paramref name="r"/>, <paramref name="c"/>]</c>.
+    /// </summary>
     private static string[] GetGlyph(GarageCell[,] grid, int r, int c) =>
         grid[r, c] switch
         {
-            WallCell                                                     => ["░"],
-            RoadCell { Glyph: var g } when g != ' '                     => [$"{g}"],
-            RoadCell                                                     => [" "],
+            WallCell                                                    => ["░"],
+            RoadCell { Glyph: var g } when g != ' '                    => [$"{g}"],
+            RoadCell                                                    => [" "],
             ParkingSpot { AllowedVehicleType: var t } when t == typeof(Bus) => ["B"],
-            ParkingSpot spot                                             => GetSpotGlyph(spot, grid, r, c),
-            _                                                            => [" "],
+            ParkingSpot spot                                            => GetSpotGlyph(spot, grid, r, c),
+            _                                                           => [" "],
         };
 
+    /// <summary>
+    /// Selects the correct empty or reserved sprite for <paramref name="spot"/> based on
+    /// orientation, inferred entry facing, reserved flag, and EV-charger flag.
+    /// </summary>
+    /// <seealso cref="InferFacing"/>
+    /// <seealso cref="GarageRenderer.Glyphs.cs"/>
     private static string[] GetSpotGlyph(ParkingSpot spot, GarageCell[,] grid, int r, int c)
     {
         if (!spot.IsEmpty) return GetOccupiedGlyph(spot);
@@ -133,41 +264,54 @@ public static class GarageRenderer
         return (spot.Orientation, facing, spot.IsReserved, spot.HasEvCharger) switch
         {
             // Vertical 4×5
-            (Orientation.Vertical, Facing.Up,   false, false) => VertEmpty_Up_NoEV,
-            (Orientation.Vertical, Facing.Up,   false, true)  => VertEmpty_Up_EV,
-            (Orientation.Vertical, Facing.Up,   true,  false) => VertResv_Up_NoEV,
-            (Orientation.Vertical, Facing.Up,   true,  true)  => VertResv_Up_EV,
-            (Orientation.Vertical, Facing.Down, false, false) => VertEmpty_Down_NoEV,
-            (Orientation.Vertical, Facing.Down, false, true)  => VertEmpty_Down_EV,
-            (Orientation.Vertical, Facing.Down, true,  false) => VertResv_Down_NoEV,
-            (Orientation.Vertical, Facing.Down, true,  true)  => VertResv_Down_EV,
+            (Orientation.Vertical, Facing.Up,   false, false) => VertEmptyUpNoEv,
+            (Orientation.Vertical, Facing.Up,   false, true)  => VertEmptyUpEv,
+            (Orientation.Vertical, Facing.Up,   true,  false) => VertResvUpNoEv,
+            (Orientation.Vertical, Facing.Up,   true,  true)  => VertResvUpEv,
+            (Orientation.Vertical, Facing.Down, false, false)  => VertEmptyDownNoEv,
+            (Orientation.Vertical, Facing.Down, false, true)   => VertEmptyDownEv,
+            (Orientation.Vertical, Facing.Down, true,  false)  => VertResvDownNoEv,
+            (Orientation.Vertical, Facing.Down, true,  true)   => VertResvDownEv,
             // Horizontal 9×3
-            (Orientation.Horizontal, Facing.Right, false, false) => HorizEmpty_Right_NoEV,
-            (Orientation.Horizontal, Facing.Right, false, true)  => HorizEmpty_Right_EV,
-            (Orientation.Horizontal, Facing.Right, true,  false) => HorizResv_Right_NoEV,
-            (Orientation.Horizontal, Facing.Right, true,  true)  => HorizResv_Right_EV,
-            (Orientation.Horizontal, Facing.Left,  false, false) => HorizEmpty_Left_NoEV,
-            (Orientation.Horizontal, Facing.Left,  false, true)  => HorizEmpty_Left_EV,
-            (Orientation.Horizontal, Facing.Left,  true,  false) => HorizResv_Left_NoEV,
-            (Orientation.Horizontal, Facing.Left,  true,  true)  => HorizResv_Left_EV,
+            (Orientation.Horizontal, Facing.Right, false, false) => HorizEmptyRightNoEv,
+            (Orientation.Horizontal, Facing.Right, false, true)  => HorizEmptyRightEv,
+            (Orientation.Horizontal, Facing.Right, true,  false) => HorizResvRightNoEv,
+            (Orientation.Horizontal, Facing.Right, true,  true)  => HorizResvRightEv,
+            (Orientation.Horizontal, Facing.Left,  false, false) => HorizEmptyLeftNoEv,
+            (Orientation.Horizontal, Facing.Left,  false, true)  => HorizEmptyLeftEv,
+            (Orientation.Horizontal, Facing.Left,  true,  false) => HorizResvLeftNoEv,
+            (Orientation.Horizontal, Facing.Left,  true,  true)  => HorizResvLeftEv,
             _ => ["?"],
         };
     }
 
+    /// <summary>
+    /// Selects the occupied sprite for <paramref name="spot"/> based on orientation and EV-charger flag.
+    /// </summary>
     private static string[] GetOccupiedGlyph(ParkingSpot spot) =>
         (spot.Orientation, spot.HasEvCharger) switch
         {
-            (Orientation.Vertical,   false) => VertParked_NoEV,
-            (Orientation.Vertical,   true)  => VertParked_EV,
-            (Orientation.Horizontal, false) => HorizParked_NoEV,
-            (Orientation.Horizontal, true)  => HorizParked_EV,
-            _                               => ["?"],
+            (Orientation.Vertical,   false) => VertParkedNoEv,
+            (Orientation.Vertical,   true)  => VertParkedEv,
+            (Orientation.Horizontal, false) => HorizParkedNoEv,
+            (Orientation.Horizontal, true)  => HorizParkedEv,
+            _ => ["?"],
         };
 
     // ── Facing inference ──────────────────────────────────────────────────
 
+    /// <summary>The direction a driver faces when entering a parking spot from the road.</summary>
     private enum Facing { Up, Down, Left, Right }
 
+    /// <summary>
+    /// Infers the entry-facing direction for <paramref name="spot"/> by inspecting its neighbours.
+    /// </summary>
+    /// <remarks>
+    /// For vertical spots the heuristic checks which adjacent cell is a road. For horizontal spots
+    /// it checks for a wall on each side of the row. When the context is ambiguous (road or wall on
+    /// both sides) the spot's ID parity is used as a tie-breaker, giving adjacent spots opposite
+    /// facings — a reasonable default for back-to-back bay layouts.
+    /// </remarks>
     private static Facing InferFacing(ParkingSpot spot, GarageCell[,] grid, int r, int c)
     {
         if (spot.Orientation == Orientation.Vertical)
@@ -178,6 +322,7 @@ public static class GarageRenderer
             if (roadBelow && !roadAbove) return Facing.Down;
             return spot.Id % 2 == 0 ? Facing.Up : Facing.Down;
         }
+
         bool wallLeft  = HasWallBefore(grid, r, c, dr: 0, dc: -1);
         bool wallRight = HasWallBefore(grid, r, c, dr: 0, dc: +1);
         if (wallLeft  && !wallRight) return Facing.Left;
@@ -189,12 +334,21 @@ public static class GarageRenderer
         return spot.Id % 2 == 0 ? Facing.Right : Facing.Left;
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> if the cell at <c>(<paramref name="r"/>, <paramref name="c"/>)</c>
+    /// is within bounds and is a <see cref="RoadCell"/>.
+    /// </summary>
     private static bool IsRoad(GarageCell[,] grid, int r, int c)
     {
         if (r < 0 || r >= grid.GetLength(0) || c < 0 || c >= grid.GetLength(1)) return false;
         return grid[r, c] is RoadCell;
     }
 
+    /// <summary>
+    /// Scans from <c>(<paramref name="r"/>, <paramref name="c"/>)</c> in direction
+    /// <c>(<paramref name="dr"/>, <paramref name="dc"/>)</c> and returns <see langword="true"/>
+    /// if a <see cref="WallCell"/> is encountered before any <see cref="ParkingSpot"/> or the grid edge.
+    /// </summary>
     private static bool HasWallBefore(GarageCell[,] grid, int r, int c, int dr, int dc)
     {
         int rows = grid.GetLength(0), cols = grid.GetLength(1);
@@ -203,44 +357,19 @@ public static class GarageRenderer
         {
             if (grid[nr, nc] is WallCell)    return true;
             if (grid[nr, nc] is ParkingSpot) return false;
-            nr += dr; nc += dc;
+            nr += dr;
+            nc += dc;
         }
+
         return true;
     }
 
-    // ── Glyph tables — vertical 4×5 ──────────────────────────────────────
-    // ↯ replaces ⚡ throughout — ↯ is 1 terminal column, ⚡ is 2 (breaks text alignment).
-
-    static readonly string[] VertEmpty_Up_NoEV    = ["⌜  ⌝", " ╌╌ ", " ╌╌ ", " ╌╌ ", "⌞  ⌟"];
-    static readonly string[] VertEmpty_Up_EV      = ["⌜ ↯⌝", " ╌╌ ", " ╌╌ ", " ╌╌ ", "⌞  ⌟"];
-    static readonly string[] VertResv_Up_NoEV     = ["⌜  ⌝", " ┌╮ ", " ├╯ ", " ╵  ", "⌞  ⌟"];
-    static readonly string[] VertResv_Up_EV       = ["⌜ ↯⌝", " ┌╮ ", " ├╯ ", " ╵  ", "⌞  ⌟"];
-    static readonly string[] VertEmpty_Down_NoEV  = ["⌜  ⌝", " ╌╌ ", " ╌╌ ", " ╌╌ ", "⌞  ⌟"];
-    static readonly string[] VertEmpty_Down_EV    = ["⌜  ⌝", " ╌╌ ", " ╌╌ ", " ╌╌ ", "⌞↯ ⌟"];
-    static readonly string[] VertResv_Down_NoEV   = ["⌜  ⌝", " ┌╮ ", " ├╯ ", " ╵  ", "⌞  ⌟"];
-    static readonly string[] VertResv_Down_EV     = ["⌜  ⌝", " ┌╮ ", " ├╯ ", " ╵  ", "⌞↯ ⌟"];
-
-    // Vertical 4×5 — occupied (car outline)
-    static readonly string[] VertParked_NoEV      = ["╭──╮", "╿⌜⌝╿", "│██│", "╽  ╽", "╰╶╴╯"];
-    static readonly string[] VertParked_EV      = ["╭──╮", "╿⌜⌝╿", "│██│", "╽↯ ╽", "╰╶╴╯"];
-
-    // ── Glyph tables — horizontal 9×3 ────────────────────────────────────
-
-    static readonly string[] HorizEmpty_Right_NoEV  = ["⌜ ╌╌    ⌝", "  ╌╌     ", "⌞ ╌╌    ⌟"];
-    static readonly string[] HorizEmpty_Right_EV    = ["⌜ ╌╌    ⌝", "  ╌╌  ↯  ", "⌞ ╌╌    ⌟"];
-    static readonly string[] HorizResv_Right_NoEV   = ["⌜ ┌╮    ⌝", "  ├╯     ", "⌞ ╵     ⌟"];
-    static readonly string[] HorizResv_Right_EV     = ["⌜ ┌╮    ⌝", "  ├╯   ↯ ", "⌞ ╵     ⌟"];
-    static readonly string[] HorizEmpty_Left_NoEV   = ["⌜    ╌╌ ⌝", "     ╌╌  ", "⌞    ╌╌ ⌟"];
-    static readonly string[] HorizEmpty_Left_EV     = ["⌜    ╌╌ ⌝", " ↯   ╌╌  ", "⌞    ╌╌ ⌟"];
-    static readonly string[] HorizResv_Left_NoEV    = ["⌜    ┌╮ ⌝", "     ├╯  ", "⌞    ╵  ⌟"];
-    static readonly string[] HorizResv_Left_EV      = ["⌜    ┌╮ ⌝", " ↯   ├╯  ", "⌞    ╵  ⌟"];
-
-    // Horizontal 9×3 — occupied
-    static readonly string[] HorizParked_NoEV       = ["⌜       ⌝", " ┌─────  ", "⌞ └─────⌟"];
-    static readonly string[] HorizParked_EV         = ["⌜       ⌝", " ┌────↯  ", "⌞ └─────⌟"];
-
     // ── Buffer → lines ────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Converts the completed <paramref name="buffer"/> into an array of strings,
+    /// one per row, right-trimmed of trailing spaces.
+    /// </summary>
     private static string[] BufferToLines(char[,] buffer)
     {
         int rows = buffer.GetLength(0);
@@ -253,6 +382,7 @@ public static class GarageRenderer
                 sb.Append(buffer[r, c]);
             lines[r] = sb.ToString().TrimEnd();
         }
+
         return lines;
     }
 }
