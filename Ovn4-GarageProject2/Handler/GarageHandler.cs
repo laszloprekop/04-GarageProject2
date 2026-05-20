@@ -25,7 +25,11 @@ public class GarageHandler : IHandler
         var spot = _garage.GetGrid().Cast<GarageCell>()
             .OfType<ParkingSpot>()
             .FirstOrDefault(s => s.Id == spotId);
-        return spot?.TryPark(vehicle) ?? false;
+        if (spot is null || !spot.TryPark(vehicle)) return false;
+        var session = new ParkingSession(spotId, vehicle.RegNumber, DateTime.Now);
+        spot.ActiveSession = session;
+        _sessions.Add(session);
+        return true;
     }
 
     public IEnumerable<Vehicle> GetAllVehicles() =>

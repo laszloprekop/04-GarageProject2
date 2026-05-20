@@ -256,7 +256,7 @@ public class ConsoleUi : IUi
                             .OrderByDescending(session => session.Start)
                             .Select(session => session.End.HasValue
                                 ? $"{session.RegNumber,-10} @ {session.SpotId,-4} in {session.Start:MM-dd HH:mm:ss} out {session.End.Value:MM-dd HH:mm:ss}"
-                                : $"{session.RegNumber,-10} @ {session.SpotId,-4} in {session.Start:MM-dd HH:mm:ss} (still parking)")
+                                : $"{session.RegNumber,-10} @ {session.SpotId,-4} in {session.Start:MM-dd HH:mm:ss} (parking)")
                             .ToList();
                         ShowList(app, "Parking History",
                             items.Count > 0 ? items : ["No parking sessions recorded yet."]);
