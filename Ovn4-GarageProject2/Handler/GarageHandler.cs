@@ -67,7 +67,9 @@ public class GarageHandler : IHandler
         return anchor.Id;
     }
 
-    public ParkingSpot? FindFreeSpot(int width, int height, Type? requiredType = null)
+    public Vehicle? FindByReg(string regNumber) => _garage?.GetAll().FirstOrDefault(v => v.RegNumber.Equals(regNumber, StringComparison.OrdinalIgnoreCase));
+
+    private ParkingSpot? FindFreeSpot(int width, int height, Type? requiredType = null)
     {
         if (_garage is null) return null;
         var grid = _garage.GetGrid();

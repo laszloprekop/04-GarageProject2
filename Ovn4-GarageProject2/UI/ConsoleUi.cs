@@ -96,8 +96,6 @@ public class ConsoleUi : IUi
                                 parkedSpotId.HasValue ? "Vehicle parked." : "Could not park vehicle.", "OK");
                         }
 
-                        ;
-
                         okButton.Accepting += (_, _) => DoPark();
                         regField.KeyDown += (_, key) =>
                         {
@@ -150,6 +148,31 @@ public class ConsoleUi : IUi
                             mapView.Rebuild(_handler.GetGrid());
                         }
                     }, null),
+                    new MenuItem("_Find by RegistrationNumber", "", () =>
+                    {
+                        var dialog = new Dialog { Title = "Find Vehicle", Width = 44, Height = 10 };
+                        var label = new Label { Text = "Registration number:", X = 1, Y = 1 };
+                        var regField = new TextField { X = 1, Y = 3, Width = 7 };
+                        var okButton = new Button { Text = "Find", X = 1, Y = 6 };
+                        var cancelButton = new Button { Text = "Cancel", X = 11, Y = 6 };
+
+                        void DoFindRegNo()
+                        {
+                            var v = _handler.FindByReg(regField.Text?.Trim() ?? "");
+                            app.RequestStop(null);
+                            MessageBox.Query(app, "Result",
+                                v is not null ? $"{v.RegNumber}  {v.GetType().Name}  {v.Colour}" : "Not found.", "OK");
+                        }
+
+                        okButton.Accepting += (_, _) => DoFindRegNo();
+                        regField.KeyDown += (_, key) =>
+                        {
+                            if (key == Key.Enter) DoFindRegNo();
+                        };
+                        cancelButton.Accepting += (_, _) => app.RequestStop(null);
+                        dialog.Add(label, regField, okButton, cancelButton);
+                        app.Run(dialog);
+                    }),
                     new MenuItem("_Toggle Renderer", "", () =>
                     {
                         showingSprite = !showingSprite;
