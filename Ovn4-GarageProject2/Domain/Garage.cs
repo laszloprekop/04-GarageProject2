@@ -18,7 +18,7 @@ public class Garage<T> : IGarage, IEnumerable<T> where T : Vehicle
 
 
     public IEnumerable<Vehicle> GetAll() =>
-        AllSpots().SelectMany(s => s.GetVehicles());
+        AllSpots().SelectMany(s => s.GetVehicles()).DistinctBy(v => v.RegNumber);
 
     public GarageCell[,] GetGrid() => _grid;
 
