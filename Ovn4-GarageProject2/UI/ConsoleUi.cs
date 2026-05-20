@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Ovn4_GarageProject2.Handler;
 using Terminal.Gui.App;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
@@ -85,13 +86,22 @@ public class ConsoleUi : IUi
                         var cancelButton = new Button { Text = "Cancel", X = 10, Y = 10 };
 
                         int? parkedSpotId = null;
-                        okButton.Accepting += (_, _) =>
+
+                        void DoPark()
                         {
-                            var vehicle = CreateVehicle(types[typeList.SelectedItem ?? 0], regField.Text);
+                            var vehicle = CreateVehicle(types[typeList.SelectedItem ?? 0], regField.Text?.Trim() ?? "");
                             parkedSpotId = _handler.Park(vehicle);
                             app.RequestStop(null);
                             MessageBox.Query(app, "Result",
                                 parkedSpotId.HasValue ? "Vehicle parked." : "Could not park vehicle.", "OK");
+                        }
+
+                        ;
+
+                        okButton.Accepting += (_, _) => DoPark();
+                        regField.KeyDown += (_, key) =>
+                        {
+                            if (key == Key.Enter) DoPark();
                         };
                         cancelButton.Accepting += (_, _) => app.RequestStop(null);
 
@@ -108,19 +118,26 @@ public class ConsoleUi : IUi
                     }, null),
                     new MenuItem("_Remove Vehicle", "", () =>
                     {
-                        var dialog = new Dialog { Title = "Remove Vehicle", Width = 44, Height = 8 };
+                        var dialog = new Dialog { Title = "Remove Vehicle", Width = 44, Height = 10 };
                         var regLabel = new Label { Text = "Registration number:", X = 1, Y = 1 };
-                        var regField = new TextField { X = 1, Y = 3, Width = 20 };
-                        var okButton = new Button { Text = "Remove", X = 1, Y = 5 };
-                        var cancelButton = new Button { Text = "Cancel", X = 11, Y = 5 };
+                        var regField = new TextField { X = 1, Y = 3, Width = 30 };
+                        var okButton = new Button { Text = "Remove", X = 1, Y = 6 };
+                        var cancelButton = new Button { Text = "Cancel", X = 11, Y = 6 };
 
                         bool removed = false;
-                        okButton.Accepting += (_, _) =>
+
+                        void DoRemove()
                         {
-                            removed = _handler.Remove(regField.Text.Trim());
+                            removed = _handler.Remove(regField.Text?.Trim() ?? "");
                             app.RequestStop(null);
                             MessageBox.Query(app, "Result",
                                 removed ? "Vehicle removed." : "No vehicle with that registration found.", "OK");
+                        }
+
+                        okButton.Accepting += (_, _) => DoRemove();
+                        regField.KeyDown += (_, key) =>
+                        {
+                            if (key == Key.Enter) DoRemove();
                         };
                         cancelButton.Accepting += (_, _) => app.RequestStop(null);
 
