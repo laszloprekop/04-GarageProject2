@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Folder Include="Layouts\"/>
         <PackageReference Include="Terminal.Gui" Version="2.*"/>
     </ItemGroup>
 

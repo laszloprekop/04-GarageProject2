@@ -10,7 +10,7 @@ public class Manager
     private readonly IUi _ui;
     private readonly IHandler _handler;
 
-    private List<IGarage> _garages;
+    private readonly List<IGarage> _garages;
     private int _activeGarageIndex = 0;
 
 
@@ -18,7 +18,7 @@ public class Manager
     {
         _ui = ui;
         _handler = handler;
-        _garages = [MixedGarageLayout.Create()];
+        _garages = [MixedGarageLayout.Create(), HangarLayout.Create()];
     }
 
     public void Seed()
