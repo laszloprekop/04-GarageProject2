@@ -152,13 +152,13 @@ public class ConsoleUi : IUi
                     {
                         var dialog = new Dialog { Title = "Find Vehicle", Width = 44, Height = 10 };
                         var label = new Label { Text = "Registration number:", X = 1, Y = 1 };
-                        var regField = new TextField { X = 1, Y = 3, Width = 7 };
+                        var regField = new TextField { X = 1, Y = 3, Width = 15 };
                         var okButton = new Button { Text = "Find", X = 1, Y = 6 };
                         var cancelButton = new Button { Text = "Cancel", X = 11, Y = 6 };
 
                         void DoFindRegNo()
                         {
-                            var results = _handler.FindByReg(regField.Text.Trim() ?? "")
+                            var results = _handler.FindByReg(regField.Text?.Trim() ?? "")
                                 .Select(v =>
                                     $"{v.RegNumber,-10}  {v.GetType().Name,-12}  {v.Colour,-10} {v.WheelCount} wheel(s)")
                                 .ToList();
