@@ -68,6 +68,19 @@ public class GarageHandler : IHandler
         if (GetAllVehicles().Any(v => v.RegNumber.Equals(vehicle.RegNumber, StringComparison.OrdinalIgnoreCase)))
             return null;
 
+        // Park in the reserved spot linked to this reg number if it is still free.
+        var reserved = _garage.GetGrid().Cast<GarageCell>()
+            .OfType<ParkingSpot>()
+            .FirstOrDefault(s => s.IsReserved && s.IsEmpty
+                && s.ReservedForRegNumber?.Equals(vehicle.RegNumber, StringComparison.OrdinalIgnoreCase) == true);
+        if (reserved is not null && reserved.TryPark(vehicle))
+        {
+            var rs = new ParkingSession(reserved.Id, vehicle.RegNumber, DateTime.Now);
+            reserved.ActiveSession = rs;
+            _sessions.Add(rs);
+            return reserved.Id;
+        }
+
         var (width, height) = Footprints.GetValueOrDefault(vehicle.GetType(), (1, 1));
         Type? requiredZone = vehicle is Bus or Airplane ? vehicle.GetType() : null;
         var anchor = FindFreeSpot(width, height, requiredZone);
@@ -138,4 +151,12 @@ public class GarageHandler : IHandler
 
     private readonly List<ParkingSession> _sessions = [];
     public IReadOnlyList<ParkingSession> GetSessionHistory() => _sessions.AsReadOnly();
+
+    public IEnumerable<string> GetReservedRegNumbers() =>
+        _garage?.GetGrid().Cast<GarageCell>()
+            .OfType<ParkingSpot>()
+            .Where(s => s.IsReserved && s.ReservedForRegNumber is not null)
+            .Select(s => s.ReservedForRegNumber!)
+            .Distinct()
+        ?? Enumerable.Empty<string>();
 }

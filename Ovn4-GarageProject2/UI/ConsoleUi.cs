@@ -116,15 +116,53 @@ public class ConsoleUi : IUi
                     new MenuItem("_Park Vehicle", "", () =>
                     {
                         var types = new[] { "Car", "Motorcycle", "Bus", "Boat", "Airplane" };
-                        var dialog = new Dialog { Title = "Park Vehicle", Width = 50, Height = 14 };
+                        var typeExtras = new (string Label, string Default)[]
+                        {
+                            ("Fuel type:", "Gasoline"),
+                            ("Engine (cc):", "650"),
+                            ("Seats:", "12"),
+                            ("Length (m):", "10"),
+                            ("Engines:", "4"),
+                        };
+                        var defaultWheels = new[] { "4", "2", "6", "0", "18" };
+                        var reservedRegs = _handler.GetReservedRegNumbers().ToList();
+
+                        var dialog = new Dialog { Title = "Park Vehicle", Width = 58, Height = 17 };
 
                         var typeLabel = new Label { Text = "Vehicle Type:", X = 1, Y = 1 };
-                        var typeList = new ListView { X = 1, Y = 2, Width = 20, Height = 5 };
+                        var typeList = new ListView { X = 1, Y = 2, Width = 17, Height = 5 };
                         typeList.SetSource(new ObservableCollection<string>(types));
-                        var regLabel = new Label { Text = "Registration number:", X = 1, Y = 8 };
-                        var regField = new TextField { X = 14, Y = 8, Width = 15 };
-                        var okButton = new Button { Text = "Park", X = 1, Y = 10 };
-                        var cancelButton = new Button { Text = "Cancel", X = 10, Y = 10 };
+
+                        var resvLabel = new Label { Text = "Reserved reg. numbers:", X = 21, Y = 1 };
+                        var resvList = new ListView { X = 21, Y = 2, Width = 34, Height = 5 };
+                        resvList.SetSource(new ObservableCollection<string>(
+                            reservedRegs.Count > 0 ? reservedRegs : ["(no reserved spots)"]));
+
+                        var regLabel = new Label { Text = "Reg. number:", X = 1, Y = 8 };
+                        var regField = new TextField { X = 15, Y = 8, Width = 20 };
+                        var colLabel = new Label { Text = "Colour:", X = 1, Y = 9 };
+                        var colField = new TextField { X = 15, Y = 9, Width = 15, Text = "White" };
+                        var whlLabel = new Label { Text = "Wheels:", X = 1, Y = 10 };
+                        var whlField = new TextField { X = 15, Y = 10, Width = 5, Text = defaultWheels[0] };
+                        var extraLabel = new Label { Text = typeExtras[0].Label, X = 1, Y = 11 };
+                        var extraField = new TextField { X = 15, Y = 11, Width = 15, Text = typeExtras[0].Default };
+
+                        typeList.ValueChanged += (_, e) =>
+                        {
+                            var idx = Math.Clamp(e.NewValue ?? 0, 0, typeExtras.Length - 1);
+                            extraLabel.Text = typeExtras[idx].Label;
+                            extraField.Text = typeExtras[idx].Default;
+                            whlField.Text = defaultWheels[idx];
+                        };
+                        if (reservedRegs.Count > 0)
+                            resvList.ValueChanged += (_, e) =>
+                            {
+                                if (e.NewValue is { } row && row < reservedRegs.Count)
+                                    regField.Text = reservedRegs[row];
+                            };
+
+                        var okButton = new Button { Text = "Park", X = 1, Y = 13 };
+                        var cancelButton = new Button { Text = "Cancel", X = 10, Y = 13 };
 
                         int? parkedSpotId = null;
 
@@ -136,7 +174,12 @@ public class ConsoleUi : IUi
                                 return;
                             }
 
-                            var vehicle = CreateVehicle(types[typeList.SelectedItem ?? 0], regField.Text.Trim());
+                            var vehicle = CreateVehicle(
+                                types[typeList.SelectedItem ?? 0],
+                                regField.Text.Trim(),
+                                colField.Text?.Trim() ?? "White",
+                                whlField.Text?.Trim() ?? "4",
+                                extraField.Text?.Trim() ?? "");
                             parkedSpotId = _handler.Park(vehicle);
                             app.RequestStop(null);
                             MessageBox.Query(app, "Result",
@@ -147,7 +190,10 @@ public class ConsoleUi : IUi
                         regField.OnEnter(DoPark);
                         cancelButton.Accepting += (_, _) => app.RequestStop(null);
 
-                        dialog.Add(typeLabel, typeList, regLabel, regField, okButton, cancelButton);
+                        dialog.Add(typeLabel, typeList, resvLabel, resvList,
+                            regLabel, regField, colLabel, colField,
+                            whlLabel, whlField, extraLabel, extraField,
+                            okButton, cancelButton);
                         app.Run(dialog);
 
                         if (parkedSpotId.HasValue)
@@ -296,13 +342,23 @@ public class ConsoleUi : IUi
         win.Dispose();
     }
 
-    private static Domain.Vehicle CreateVehicle(string type, string regNo) => type switch
+    private static Domain.Vehicle CreateVehicle(
+        string type, string regNo, string colour, string wheels, string extra) => type switch
     {
-        "Car" => new Domain.Car { RegNumber = regNo, Colour = "White", WheelCount = "4" },
-        "Motorcycle" => new Domain.Motorcycle { RegNumber = regNo, Colour = "Black", WheelCount = "2" },
-        "Bus" => new Domain.Bus { RegNumber = regNo, Colour = "Yellow", WheelCount = "6" },
-        "Boat" => new Domain.Boat { RegNumber = regNo, Colour = "Blue", WheelCount = "10" },
-        "Airplane" => new Domain.Airplane { RegNumber = regNo, Colour = "Silver", WheelCount = "18" },
+        "Car" => new Domain.Car { RegNumber = regNo, Colour = colour, WheelCount = wheels, FuelType = extra },
+        "Motorcycle" => new Domain.Motorcycle
+            { RegNumber = regNo, Colour = colour, WheelCount = wheels, CylinderVolume = extra },
+        "Bus" => new Domain.Bus { RegNumber = regNo, Colour = colour, WheelCount = wheels, NumberOfSeats = extra },
+        "Boat" => new Domain.Boat
+        {
+            RegNumber = regNo, Colour = colour, WheelCount = wheels,
+            Length = double.TryParse(extra, out double l) ? l : 10
+        },
+        "Airplane" => new Domain.Airplane
+        {
+            RegNumber = regNo, Colour = colour, WheelCount = wheels,
+            NumberOfEngines = int.TryParse(extra, out int n) ? n : 1
+        },
         _ => throw new NotImplementedException()
     };
 

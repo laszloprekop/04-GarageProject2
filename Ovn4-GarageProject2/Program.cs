@@ -6,6 +6,16 @@ var handler = new GarageHandler();
 var manager = new Manager(handler);
 var ui = new ConsoleUi(handler, manager);
 handler.SetGarage(manager.ActiveGarage);
+
+// Assign reg numbers to two reserved spots (row*16+col).
+foreach (var (id, reg) in new[] { (25, "GHI789"), (119, "JKL012") })
+{
+    var s = handler.GetGrid().Cast<Ovn4_GarageProject2.Domain.GarageCell>()
+        .OfType<Ovn4_GarageProject2.Domain.ParkingSpot>()
+        .FirstOrDefault(p => p.Id == id);
+    if (s is not null) s.ReservedForRegNumber = reg;
+}
+
 // seed garage with some vehicles
 // IDs are r*16+c for the 16-column blueprint.
 handler.ParkAtSpot(21, new Ovn4_GarageProject2.Domain.Car

@@ -18,4 +18,5 @@ public interface IHandler
     IEnumerable<Vehicle> FindByReg(string partialRegNumber);
     IEnumerable<Vehicle> Search(string? colour, string? wheelCount, Type? vehicleType);
     IReadOnlyList<ParkingSession> GetSessionHistory();
+    IEnumerable<string> GetReservedRegNumbers();
 }
