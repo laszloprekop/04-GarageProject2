@@ -3,8 +3,8 @@ using Ovn4_GarageProject2.Handler;
 using Ovn4_GarageProject2.UI;
 
 var handler = new GarageHandler();
-var ui = new ConsoleUi(handler);
-var manager = new Manager(ui, handler);
+var manager = new Manager(handler);
+var ui = new ConsoleUi(handler, manager);
 handler.SetGarage(manager.ActiveGarage);
 // seed garage with some vehicles
 // IDs are r*16+c for the 16-column blueprint.
@@ -15,5 +15,5 @@ handler.ParkAtSpot(23, new Ovn4_GarageProject2.Domain.Motorcycle
 handler.ParkAtSpot(89, new Ovn4_GarageProject2.Domain.Car
     { RegNumber = "ABC123", Colour = "Red", WheelCount = "4", FuelType = "Gasoline" });
 handler.ParkAtSpot(29, new Ovn4_GarageProject2.Domain.Bus()
-    { RegNumber = "BUS001", Colour = "Yellow", WheelCount = "6", NumberOfSeats = "12"});
-manager.Run();
+    { RegNumber = "BUS001", Colour = "Yellow", WheelCount = "6", NumberOfSeats = "12" });
+manager.Run(ui);

@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using Ovn4_GarageProject2.Handler;
 using Terminal.Gui.App;
-using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
@@ -10,7 +9,13 @@ namespace Ovn4_GarageProject2.UI;
 public class ConsoleUi : IUi
 {
     private readonly IHandler _handler;
-    public ConsoleUi(IHandler handler) => _handler = handler;
+    private readonly Manager _manager;
+
+    public ConsoleUi(IHandler handler, Manager manager)
+    {
+        _handler = handler;
+        _manager = manager;
+    }
 
     public void Start()
     {
@@ -44,6 +49,26 @@ public class ConsoleUi : IUi
             [
                 new MenuBarItem("_Garage",
                 [
+                    new MenuItem("_Switch Garage", "", () =>
+                    {
+                        var names = _manager.Garages.Select((g, i) => $"{i + 1}. {g.Name} ({g.Capacity} spots")
+                            .ToList();
+                        var dialog = new Dialog { Title = "Select Garage", Width = 40, Height = 12 };
+                        var list = new ListView { Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+                        list.SetSource(new ObservableCollection<string>(names));
+                        var okButton = new Button { Text = "OK", X = Pos.Center(), Y = Pos.Bottom(list) };
+                        okButton.Accepting += (_, _) =>
+                        {
+                            _manager.SwitchGarage(list.SelectedItem);
+                            app.RequestStop(null);
+                        };
+                        dialog.Add(list, okButton);
+                        app.Run(dialog);
+
+                        // update the view to the new garage
+                        spriteView.Rebuild(GarageRenderer.Render(_handler.GetGrid()));
+                        mapView.Rebuild(_handler.GetGrid());
+                    }),
                     new MenuItem("_List Vehicles", "", () =>
                     {
                         var items = _handler.GetAllVehicles()
@@ -97,10 +122,7 @@ public class ConsoleUi : IUi
                         }
 
                         okButton.Accepting += (_, _) => DoPark();
-                        regField.KeyDown += (_, key) =>
-                        {
-                            if (key == Key.Enter) DoPark();
-                        };
+                        regField.OnEnter(DoPark);
                         cancelButton.Accepting += (_, _) => app.RequestStop(null);
 
                         dialog.Add(typeLabel, typeList, regLabel, regField, okButton, cancelButton);
@@ -133,10 +155,7 @@ public class ConsoleUi : IUi
                         }
 
                         okButton.Accepting += (_, _) => DoRemove();
-                        regField.KeyDown += (_, key) =>
-                        {
-                            if (key == Key.Enter) DoRemove();
-                        };
+                        regField.OnEnter(DoRemove);
                         cancelButton.Accepting += (_, _) => app.RequestStop(null);
 
                         dialog.Add(regLabel, regField, okButton, cancelButton);
@@ -176,10 +195,7 @@ public class ConsoleUi : IUi
                         }
 
                         okButton.Accepting += (_, _) => DoFindRegNo();
-                        regField.KeyDown += (_, key) =>
-                        {
-                            if (key == Key.Enter) DoFindRegNo();
-                        };
+                        regField.OnEnter(DoFindRegNo);
                         cancelButton.Accepting += (_, _) => app.RequestStop(null);
                         dialog.Add(label, regField, okButton, cancelButton);
                         app.Run(dialog);
@@ -207,18 +223,9 @@ public class ConsoleUi : IUi
                         }
 
                         okButton.Accepting += (_, _) => DoSearch();
-                        wheelsField.KeyDown += (_, key) =>
-                        {
-                            if (key == Key.Enter) DoSearch();
-                        };
-                        typeField.KeyDown += (_, key) =>
-                        {
-                            if (key == Key.Enter) DoSearch();
-                        };
-                        colorField.KeyDown += (_, key) =>
-                        {
-                            if (key == Key.Enter) DoSearch();
-                        };
+                        colorField.OnEnter(DoSearch);
+                        wheelsField.OnEnter(DoSearch);
+                        typeField.OnEnter(DoSearch);
 
                         cancelButton.Accepting += (_, _) => app.RequestStop(null);
                         dialog.Add(colorLabel, colorField, wheelsLabel, wheelsField, typeLabel, typeField, okButton,
