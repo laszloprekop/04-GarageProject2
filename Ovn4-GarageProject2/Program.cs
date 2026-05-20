@@ -1,4 +1,5 @@
-﻿using Ovn4_GarageProject2;
+using Ovn4_GarageProject2;
+using Ovn4_GarageProject2.Domain;
 using Ovn4_GarageProject2.Handler;
 using Ovn4_GarageProject2.UI;
 
@@ -7,23 +8,19 @@ var manager = new Manager(handler);
 var ui = new ConsoleUi(handler, manager);
 handler.SetGarage(manager.ActiveGarage);
 
-// Assign reg numbers to two reserved spots (row*16+col).
-foreach (var (id, reg) in new[] { (25, "GHI789"), (119, "JKL012") })
-{
-    var s = handler.GetGrid().Cast<Ovn4_GarageProject2.Domain.GarageCell>()
-        .OfType<Ovn4_GarageProject2.Domain.ParkingSpot>()
-        .FirstOrDefault(p => p.Id == id);
-    if (s is not null) s.ReservedForRegNumber = reg;
-}
+handler.LoadState(new GarageState(
+    Vehicles:
+    [
+        new("Car",        21, "DEF345", "Blue",   "4", "EV"),
+        new("Motorcycle", 23, "DEF456", "Black",  "2", "650"),
+        new("Car",        89, "ABC123", "Red",    "4", "Gasoline"),
+        new("Bus",        29, "BUS001", "Yellow", "6", "12"),
+    ],
+    ReservedSpots:
+    [
+        new(25,  "GHI789"),
+        new(119, "JKL012"),
+    ],
+    Sessions: []));
 
-// seed garage with some vehicles
-// IDs are r*16+c for the 16-column blueprint.
-handler.ParkAtSpot(21, new Ovn4_GarageProject2.Domain.Car
-    { RegNumber = "DEF345", Colour = "Blue", WheelCount = "4", FuelType = "EV" });
-handler.ParkAtSpot(23, new Ovn4_GarageProject2.Domain.Motorcycle
-    { RegNumber = "DEF456", Colour = "Black", WheelCount = "2", CylinderVolume = "650" });
-handler.ParkAtSpot(89, new Ovn4_GarageProject2.Domain.Car
-    { RegNumber = "ABC123", Colour = "Red", WheelCount = "4", FuelType = "Gasoline" });
-handler.ParkAtSpot(29, new Ovn4_GarageProject2.Domain.Bus()
-    { RegNumber = "BUS001", Colour = "Yellow", WheelCount = "6", NumberOfSeats = "12" });
 manager.Run(ui);

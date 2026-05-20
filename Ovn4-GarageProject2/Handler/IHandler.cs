@@ -19,4 +19,6 @@ public interface IHandler
     IEnumerable<Vehicle> Search(string? colour, string? wheelCount, Type? vehicleType);
     IReadOnlyList<ParkingSession> GetSessionHistory();
     IEnumerable<string> GetReservedRegNumbers();
+    void LoadState(GarageState state);
+    GarageState SaveState();
 }
