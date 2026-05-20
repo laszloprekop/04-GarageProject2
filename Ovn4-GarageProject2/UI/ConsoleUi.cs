@@ -173,6 +173,47 @@ public class ConsoleUi : IUi
                         dialog.Add(label, regField, okButton, cancelButton);
                         app.Run(dialog);
                     }),
+                    new MenuItem("_Search", "", () =>
+                    {
+                        var dialog = new Dialog { Title = "Search Vehicles", Width = 50, Height = 12 };
+                        var colorLabel = new Label { Text = "Colour:", X = 1, Y = 1 };
+                        var colorField = new TextField { X = 14, Y = 1, Width = 15 };
+                        var wheelsLabel = new Label { Text = "Wheels:", X = 1, Y = 3 };
+                        var wheelsField = new TextField { X = 14, Y = 3, Width = 15 };
+                        var typeLabel = new Label { Text = "Vehicle Type:", X = 1, Y = 5 };
+                        var typeField = new TextField { X = 14, Y = 5, Width = 15 };
+                        var okButton = new Button { Text = "Search", X = 1, Y = 7 };
+                        var cancelButton = new Button { Text = "Cancel", X = 10, Y = 7 };
+
+                        void DoSearch()
+                        {
+                            string? wheels = int.TryParse(wheelsField.Text, out int w) ? w.ToString() : null;
+                            Type? type = ResolveType(typeField.Text);
+                            var results = _handler.Search(colorField.Text, wheels, type)
+                                .Select(v => $"{v.RegNumber,-10} {v.GetType().Name,-12} {v.Colour}").ToList();
+                            app.RequestStop(null);
+                            ShowList(app, "Search Results", results);
+                        }
+
+                        okButton.Accepting += (_, _) => DoSearch();
+                        wheelsField.KeyDown += (_, key) =>
+                        {
+                            if (key == Key.Enter) DoSearch();
+                        };
+                        typeField.KeyDown += (_, key) =>
+                        {
+                            if (key == Key.Enter) DoSearch();
+                        };
+                        colorField.KeyDown += (_, key) =>
+                        {
+                            if (key == Key.Enter) DoSearch();
+                        };
+
+                        cancelButton.Accepting += (_, _) => app.RequestStop(null);
+                        dialog.Add(colorLabel, colorField, wheelsLabel, wheelsField, typeLabel, typeField, okButton,
+                            cancelButton);
+                        app.Run(dialog);
+                    }),
                     new MenuItem("_Toggle Renderer", "", () =>
                     {
                         showingSprite = !showingSprite;
@@ -198,5 +239,26 @@ public class ConsoleUi : IUi
         "Boat" => new Domain.Boat { RegNumber = regNo, Colour = "Blue", WheelCount = "10" },
         "Airplane" => new Domain.Airplane { RegNumber = regNo, Colour = "Silver", WheelCount = "18" },
         _ => throw new NotImplementedException()
+    };
+
+    private static void ShowList(IApplication app, string title, List<string> items)
+    {
+        var d = new Dialog { Title = title, Width = 60, Height = 20 };
+        var lv = new ListView { Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+        lv.SetSource(new System.Collections.ObjectModel.ObservableCollection<string>(items));
+        var btn = new Button { Text = "Close", X = Pos.Center(), Y = Pos.Bottom(lv) };
+        btn.Accepting += (_, _) => app.RequestStop(null);
+        d.Add(lv, btn);
+        app.Run(d);
+    }
+
+    private static Type? ResolveType(string name) => name.Trim().ToLower() switch
+    {
+        "car" => typeof(Domain.Car),
+        "motorcycle" => typeof(Domain.Motorcycle),
+        "bus" => typeof(Domain.Bus),
+        "boat" => typeof(Domain.Boat),
+        "airplane" => typeof(Domain.Airplane),
+        _ => null,
     };
 }
