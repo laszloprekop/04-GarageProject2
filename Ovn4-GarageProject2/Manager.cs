@@ -22,9 +22,9 @@ public class Manager(IHandler handler)
 
     public void SwitchGarage(int? index)
     {
-        if (index < 0 || index >= _garages.Count) return;
-        _activeGarageIndex = (int)index;
-        ((Handler.GarageHandler)_handler).SetGarage(_garages[(int)index]);
+        if (index is not { } i || i < 0 || i >= _garages.Count) return;
+        _activeGarageIndex = i;
+        ((Handler.GarageHandler)_handler).SetGarage(_garages[i]);
     }
 
     public IGarage ActiveGarage => _garages[_activeGarageIndex];
