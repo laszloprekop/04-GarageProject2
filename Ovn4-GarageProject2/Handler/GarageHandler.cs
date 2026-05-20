@@ -44,6 +44,16 @@ public class GarageHandler : IHandler
         foreach (var spot in _garage.GetGrid().Cast<GarageCell>().OfType<ParkingSpot>())
             if (spot.TryUnpark(regNumber))
                 found = true;
+        if (found)
+        {
+            for (int i = 0; i < _sessions.Count; i++)
+            {
+                if (_sessions[i].RegNumber.Equals(regNumber, StringComparison.OrdinalIgnoreCase)
+                    && _sessions[i].End is null)
+                    _sessions[i] = _sessions[i] with { End = DateTime.Now };
+            }
+        }
+
         return found;
     }
 
@@ -64,6 +74,9 @@ public class GarageHandler : IHandler
             if (grid[r, c] is ParkingSpot spot)
                 spot.TryPark(vehicle);
 
+        var session = new ParkingSession(anchor.Id, vehicle.RegNumber, DateTime.Now);
+        anchor.ActiveSession = session;
+        _sessions.Add(session);
         return anchor.Id;
     }
 
@@ -117,4 +130,7 @@ public class GarageHandler : IHandler
 
         return true;
     }
+
+    private readonly List<ParkingSession> _sessions = [];
+    public IReadOnlyList<ParkingSession> GetSessionHistory() => _sessions.AsReadOnly();
 }

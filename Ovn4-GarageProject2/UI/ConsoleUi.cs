@@ -225,6 +225,17 @@ public class ConsoleUi : IUi
                             cancelButton);
                         app.Run(dialog);
                     }),
+                    new MenuItem("Parking _History", "", () =>
+                    {
+                        var items = _handler.GetSessionHistory()
+                            .OrderByDescending(session => session.Start)
+                            .Select(session => session.End.HasValue
+                                ? $"{session.RegNumber,-10} @ {session.SpotId,-4} in {session.Start:MM-dd HH:mm:ss} out {session.End.Value:MM-dd HH:mm:ss}"
+                                : $"{session.RegNumber,-10} @ {session.SpotId,-4} in {session.Start:MM-dd HH:mm:ss} (still parking)")
+                            .ToList();
+                        ShowList(app, "Parking History",
+                            items.Count > 0 ? items : ["No parking sessions recorded yet."]);
+                    }, null),
                     new MenuItem("_Toggle Renderer", "", () =>
                     {
                         showingSprite = !showingSprite;
