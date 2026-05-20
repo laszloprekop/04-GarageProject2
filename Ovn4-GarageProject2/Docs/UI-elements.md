@@ -6,8 +6,8 @@ Parking spot, aka cell:
 - Separator lines are around the spots
 - Subdivided to 3 motorcycle parking spaces, if one motorcycle is parked, no other vehicle can park
 - Properties:
-    - has EV charger
-    - is Rented (Reserved to a registration number)
+  - has EV charger
+  - is Rented (Reserved to a registration number)
 
 ## Parking cell separtors:
 
@@ -271,15 +271,15 @@ Parking spot, aka cell:
 ### Bus Cell
 
 Model 0, 9x7
-
+```
 ╭╭━───━╮╮
 ▌└─────┘▐
-│┤ ├│
-│┤ ├│
+│┤     ├│
+│┤     ├│
 │┤█████├│
 ▌╯█████╰▐
 ╰━─────━╯
-
+```
 Model 1, 9x11
 
 ```
@@ -313,7 +313,6 @@ Model 2, 9x11
 ```
 
 Model 2.1, 9x14 (2x3 car sized cells)
-
 ```
 ╭╭━───━╮╮
 ▌└─────┘▐
@@ -331,6 +330,7 @@ Model 2.1, 9x14 (2x3 car sized cells)
 ▌╯█████╰▐
 ╰━─────━╯
 ```
+
 
 Model 3 - 9x19
 
