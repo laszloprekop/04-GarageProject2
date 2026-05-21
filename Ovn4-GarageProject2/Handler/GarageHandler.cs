@@ -19,19 +19,6 @@ public class GarageHandler : IHandler
 
     public GarageCell[,] GetGrid() => _garage?.GetGrid() ?? new GarageCell[0, 0];
 
-    public bool ParkAtSpot(int spotId, Vehicle vehicle)
-    {
-        if (_garage is null) return false;
-        var spot = _garage.GetGrid().Cast<GarageCell>()
-            .OfType<ParkingSpot>()
-            .FirstOrDefault(s => s.Id == spotId);
-        if (spot is null || !spot.TryPark(vehicle)) return false;
-        var session = new ParkingSession(spotId, vehicle.RegNumber, DateTime.Now);
-        spot.ActiveSession = session;
-        _sessions.Add(session);
-        return true;
-    }
-
     public IEnumerable<Vehicle> GetAllVehicles() =>
         _garage?.GetAll() ?? Enumerable.Empty<Vehicle>();
 
@@ -147,6 +134,94 @@ public class GarageHandler : IHandler
         }
 
         return true;
+    }
+
+    private bool PlaceVehicle(int spotId, Vehicle vehicle)
+    {
+        if (_garage is null) return false;
+        var spot = _garage.GetGrid().Cast<GarageCell>()
+            .OfType<ParkingSpot>()
+            .FirstOrDefault(s => s.Id == spotId);
+        if (spot is null) return false;
+        return spot.TryPark(vehicle);
+    }
+
+    private static Vehicle CreateVehicleFromRecord(VehicleRecord r) => r.Type switch
+    {
+        "Car"        => new Car        { RegNumber = r.RegNumber, Colour = r.Colour, WheelCount = r.WheelCount, FuelType = r.Extra },
+        "Motorcycle" => new Motorcycle { RegNumber = r.RegNumber, Colour = r.Colour, WheelCount = r.WheelCount, CylinderVolume = r.Extra },
+        "Bus"        => new Bus        { RegNumber = r.RegNumber, Colour = r.Colour, WheelCount = r.WheelCount, NumberOfSeats = r.Extra },
+        "Boat"       => new Boat       { RegNumber = r.RegNumber, Colour = r.Colour, WheelCount = r.WheelCount,
+                            Length = double.TryParse(r.Extra, out double l) ? l : 10 },
+        "Airplane"   => new Airplane   { RegNumber = r.RegNumber, Colour = r.Colour, WheelCount = r.WheelCount,
+                            NumberOfEngines = int.TryParse(r.Extra, out int n) ? n : 1 },
+        _ => throw new ArgumentException($"Unknown vehicle type: {r.Type}")
+    };
+
+    private static string ExtraOf(Vehicle v) => v switch
+    {
+        Car c        => c.FuelType,
+        Motorcycle m => m.CylinderVolume,
+        Bus b        => b.NumberOfSeats,
+        Boat bo      => bo.Length.ToString(),
+        Airplane a   => a.NumberOfEngines.ToString(),
+        _            => string.Empty
+    };
+
+    public void LoadState(GarageState state)
+    {
+        if (_garage is null) return;
+        var grid = _garage.GetGrid();
+
+        foreach (var r in state.ReservedSpots)
+        {
+            var spot = grid.Cast<GarageCell>().OfType<ParkingSpot>().FirstOrDefault(s => s.Id == r.SpotId);
+            if (spot is null) continue;
+            spot.IsReserved = true;
+            spot.ReservedForRegNumber = r.RegNumber;
+        }
+
+        foreach (var vr in state.Vehicles)
+        {
+            var vehicle = CreateVehicleFromRecord(vr);
+            if (!PlaceVehicle(vr.SpotId, vehicle)) continue;
+            var anchor = grid.Cast<GarageCell>().OfType<ParkingSpot>().FirstOrDefault(s => s.Id == vr.SpotId);
+            var session = new ParkingSession(vr.SpotId, vr.RegNumber, DateTime.Now);
+            if (anchor is not null) anchor.ActiveSession = session;
+            _sessions.Add(session);
+        }
+
+        if (state.Sessions.Count > 0)
+        {
+            _sessions.Clear();
+            _sessions.AddRange(state.Sessions);
+        }
+    }
+
+    public GarageState SaveState()
+    {
+        var grid = _garage?.GetGrid() ?? new GarageCell[0, 0];
+
+        var vehicles = grid.Cast<GarageCell>()
+            .OfType<ParkingSpot>()
+            .SelectMany(s => s.GetVehicles().Select(v => (Spot: s, Vehicle: v)))
+            .DistinctBy(x => x.Vehicle.RegNumber)
+            .Select(x => new VehicleRecord(
+                x.Vehicle.GetType().Name,
+                x.Spot.Id,
+                x.Vehicle.RegNumber,
+                x.Vehicle.Colour,
+                x.Vehicle.WheelCount,
+                ExtraOf(x.Vehicle)))
+            .ToList();
+
+        var reserved = grid.Cast<GarageCell>()
+            .OfType<ParkingSpot>()
+            .Where(s => s.IsReserved && s.ReservedForRegNumber is not null)
+            .Select(s => new ReservedRecord(s.Id, s.ReservedForRegNumber!))
+            .ToList();
+
+        return new GarageState(vehicles, reserved, _sessions.ToList());
     }
 
     private readonly List<ParkingSession> _sessions = [];
