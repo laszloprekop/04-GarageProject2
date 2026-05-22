@@ -6,18 +6,16 @@ public static class HangarLayout
 {
     private static readonly string[] Blueprint =
     [
-        "░░░  ░░░░░░░░░░░░░░░░░░░░░  ░░░",
-        "░    │P│P│P│P│P│P│P│P│P│P│    ░",
-        "░bb                         bb░",
-        "░bb  │c│c│c│c│   │c│c│c│c│  bb░",
-        "░bb  ├─┼─┼─┼─┤   ├─┼─┼─┼─┤  bb░",
-        "░──  │c│c│c│c│   │c│c│c│c│  ──░",
-        "░                             ░",
-        "░  │c│c│c│c│       │c│c│c│c│  ░",
-        "░  ├─┼─┼─┼─┤       ├─┼─┼─┼─┤  ░",
-        "░  │c│c│c│c│       │c│c│c│c│  ░",
-        "░                             ░",
-        "░░░░░░░░░░░░───────░░░░░░░░░░░░"
+        "░░░  ░░░░░░░░░░  ░░░",
+        "░    PPPPPPPPPP    ░",
+        "░bb              bb░",
+        "░bb  cccc  cccc  bb░",
+        "░bb  cccc  cccc  bb░",
+        "░                  ░",
+        "░   cccc    cccc   ░",
+        "░   cccc    cccc   ░",
+        "░                  ░",
+        "░░░░░░░░    ░░░░░░░░",
     ];
 
     public static Garage<Airplane> Create() =>
