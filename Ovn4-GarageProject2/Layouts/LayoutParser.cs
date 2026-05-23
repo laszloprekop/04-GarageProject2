@@ -32,7 +32,9 @@ public static class LayoutParser
         for (int r = 1; r < rows - 1; r++)
         for (int c = 1; c < cols - 1; c++)
         {
-            logicalGrid[r - 1, c - 1] = fullGrid[r, c];
+            var cell = fullGrid[r, c];
+            logicalGrid[r - 1, c - 1] = cell;
+            if (cell is ParkingSpot spot) { spot.Row = r - 1; spot.Col = c - 1; }
         }
 
         // Extract wall char arrays
@@ -50,6 +52,12 @@ public static class LayoutParser
         return new Garage<T>(name, logicalGrid, layout);
     }
 
+    // Max bay dimensions per vehicle type — must match the sprite cases in PaintBayAnchors.
+    private static readonly Dictionary<Type, (int Rows, int Cols)> BaySize = new()
+    {
+        [typeof(Bus)] = (3, 2),
+    };
+
     private static BayAnchor[] FindBayAnchors(GarageCell[,] grid)
     {
         int rows = grid.GetLength(0), cols = grid.GetLength(1);
@@ -59,21 +67,22 @@ public static class LayoutParser
         for (int c = 0; c < cols; c++)
         {
             if (!seen.Add((r, c))) continue;
-            if (grid[r, c] is not ParkingSpot { AllowedVehicleType: var t } || t != typeof(Bus)) continue;
+            if (grid[r, c] is not ParkingSpot { AllowedVehicleType: var t } || t is null
+                || !BaySize.TryGetValue(t, out var size)) continue;
 
             int spanCols = 1;
-            while (c + spanCols < cols && grid[r, c + spanCols] is ParkingSpot { AllowedVehicleType: var tc } &&
-                   tc == t) spanCols++;
+            while (c + spanCols < cols && spanCols < size.Cols &&
+                   grid[r, c + spanCols] is ParkingSpot { AllowedVehicleType: var tc } && tc == t)
+                spanCols++;
 
             int spanRows = 1;
-            while (r + spanRows < rows && grid[r + spanRows, c] is ParkingSpot { AllowedVehicleType: var tr } &&
-                   tr == t) spanRows++;
+            while (r + spanRows < rows && spanRows < size.Rows &&
+                   grid[r + spanRows, c] is ParkingSpot { AllowedVehicleType: var tr } && tr == t)
+                spanRows++;
 
             for (int dr = 0; dr < spanRows; dr++)
             for (int dc = 0; dc < spanCols; dc++)
-            {
                 seen.Add((r + dr, c + dc));
-            }
 
             anchors.Add(new BayAnchor(r, c, spanRows, spanCols));
         }

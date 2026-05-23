@@ -6,12 +6,14 @@ public static class MixedGarageLayout
     private static readonly string[] Blueprint =
     [
         "░░░░░░░░░░░",
-        "░░CCpp  bb░",
+        "░ CCpp  bb░",
         "░       bb░",
         "░ Cccp  bb░",
-        "░ CccP  bb░",
+        "░ CccP    ░",
         "░       bb░",
-        "░░CCpP  bb░",
+        "░ CCpP  bb░",
+        "░ Cccp  bb░",
+        "░         ░",
         "░░░░░░  ░░░",
     ];
 

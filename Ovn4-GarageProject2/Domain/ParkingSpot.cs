@@ -3,8 +3,8 @@ namespace Ovn4_GarageProject2.Domain;
 public class ParkingSpot : GarageCell
 {
     public int Id { get; init; }
-    public int Row { get; init; }
-    public int Col { get; init; }
+    public int Row { get; set; }
+    public int Col { get; set; }
     public bool HasEvCharger { get; init; }
     public string? ReservedForRegNumber { get; set; }
     public Type? AllowedVehicleType { get; init;}

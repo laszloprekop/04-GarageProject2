@@ -32,6 +32,7 @@ public static partial class GarageRenderer
         var buffer = AllocateBuffer(layout.LogicalGrid);
         RenderBaseCells(layout.LogicalGrid, buffer);
         PaintBayAnchors(layout, buffer);
+        ReplaceStripePadding(layout, buffer);
         WriteBorderStrips(layout, buffer);
         return BufferToLines(buffer);
     }
@@ -225,8 +226,8 @@ public static partial class GarageRenderer
                 for (int dc = 0; dc < 4; dc++) buffer[bufferRow + 5, bufferCol + dc] = ch;
             }
 
-            // corner at outer bottom-right?
-            if (isLastBayCol && isLastBayRow)
+            // corner: replace whenever either edge is being written, so bus sprite's outer padding gets cleared
+            if (isLastBayCol || isLastBayRow)
                 buffer[bufferRow + 5, bufferCol + 4] = CornerChar(grid, layout, row, col, logicalRows, logicalCols);
         }
     }
@@ -246,7 +247,8 @@ public static partial class GarageRenderer
         bool atEdge = r + 1 >= logicalRows;
         bool wallBelow = atEdge ? bottomWall[c] == '░' : grid[r + 1, c] is WallCell;
         if (wallBelow) return '░';
-        return grid[r, c] is ParkingSpot ? '─' : ' ';
+        bool spotBelow = !atEdge && grid[r + 1, c] is ParkingSpot;
+        return grid[r, c] is ParkingSpot && spotBelow ? '─' : ' ';
     }
 
     private static char CornerChar(GarageCell[,] grid, GarageLayout layout, int r, int c, int logRows, int logCols)
