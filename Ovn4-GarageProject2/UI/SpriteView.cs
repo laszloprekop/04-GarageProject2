@@ -10,8 +10,8 @@ using Terminal.Gui.Views;
 // rendered in bright green by splitting the affected rows into three Labels.
 public class SpriteView : View
 {
-    private static readonly Scheme GreenScheme =
-        new(new Attribute(ColorName16.BrightBlue, ColorName16.Black));
+    private static readonly Scheme HighlightScheme =
+        new(new Attribute(ColorName16.White, ColorName16.BrightBlue));
 
     public SpriteView(string[] lines)
     {
@@ -55,7 +55,7 @@ public class SpriteView : View
                     Width = hEnd - hStart,
                     Height = 1,
                 };
-                hl.SetScheme(GreenScheme);
+                hl.SetScheme(HighlightScheme);
                 Add(hl);
             }
 

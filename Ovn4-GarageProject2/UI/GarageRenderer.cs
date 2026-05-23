@@ -56,12 +56,11 @@ public static partial class GarageRenderer
             var bay = layout.BayAnchors.FirstOrDefault(anchor => anchor.Row == r && anchor.Col == c);
             int spanRows = bay?.SpanRows ?? 1;
             int spanCols = bay?.SpanCols ?? 1;
-            return (lines, new SpotHighlight(r * 6 + 1, c * 5 + 1, spanRows * 6, spanCols * 5));
+            return (lines, new SpotHighlight(r * 6 + 1, c * 5 + 1, spanRows * 6 - 1, spanCols * 5 - 1));
         }
 
         return (lines, null);
     }
-
 
 
     // ── Buffer ────────────────────────────────────────────────────────────
